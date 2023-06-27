@@ -1,6 +1,7 @@
 from machine import Pin
 import time
 import network
+import socket
 
 def setup_pins():
     green = Pin(16, Pin.OUT)
@@ -35,19 +36,17 @@ def parse_request(connection):
 
     while True:
         line = conn_file.readline().decode('utf-8')
-        print(f"Read line: \"{line}\"")
+        # print(f"Read line: \"{line}\"")
         
         if not line or line == '\r\n':
             print("End of connection input read")
             break
-        
         if not line.startswith("GET "):
             continue
         
         segs = line.split(' ')
         if len(segs) != 3:
             continue
-        
         path = segs[1]
         
         if not path.startswith(open_path):
@@ -55,15 +54,75 @@ def parse_request(connection):
         
         correct_path = True
         print("Correct path")
+        
+        try:
+            if len(path) == len(open_path) + 1:
+                doornum = int(path[len(open_path):])
+        except:
+            print("Error parsing doornum.")
 
-    return correct_path
+    return correct_path, doornum
+
+def read_html_files():
+    html = "index.html not present."
     
+    with open("index.html") as f:
+        html = f.read()
+    # print(f"Read HTML file: {html}")
+    
+    redirect = "redirect.html not present."
+    with open("redirect.html") as f:
+        redirect = f.read()
+    # print(f"Read Redirect file: {redirect}")
+
+    return html, redirect
+
 def main():
+    setup_wifi()
     green, red, button = setup_pins()
-    setup_wifi()    
+    html, redirect = read_html_files()
+    print("read html files")
+    
+    addr = socket.getaddrinfo('0.0.0.0', 80)[0][-1]
+    s = socket.socket()
+    s.bind(addr)
+    s.settimeout(1)
+    s.listen(1)
+    print('listening on', addr)
 
     button_press_time = 0
     while True:
+        connection = None
+        try:
+            connection, addr = s.accept()
+            print('Client connected from', addr)
+            connection.settimeout(3) # seconds
+            correct_path, doornum = parse_request(connection)
+            
+            button_press_time = time.time()
+            
+            if correct_path:
+                connection.sendall('HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n')
+                
+                if doornum is not None:
+                    print("Sending redirect html")
+                    connection.sendall(redirect)
+                    print("Doornum: ", doornum)
+                else:
+                    print("Sending root html")
+                    connection.sendall(html)
+            else:
+                print("Sending HTTP 400 bad request.")
+                
+                connection.sendall('HTTP/1.0 400 Bad Request\r\n')
+        except Exception as e:
+            print(f"Exception: {e}")
+            # print("Caught socket timeout error.")
+        finally:
+            if connection is not None:
+                print(f"Closing connection to: {addr}")
+                connection.close()
+
         if button.value() == True:
             button_press_time = time.time()
         now = time.time()
