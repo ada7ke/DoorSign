@@ -93,13 +93,12 @@ def main():
     button_press_time = 0
     while True:
         connection = None
+        
         try:
             connection, addr = s.accept()
             print('Client connected from', addr)
             connection.settimeout(3) # seconds
             correct_path, doornum = parse_request(connection)
-            
-            button_press_time = time.time()
             
             if correct_path:
                 connection.sendall('HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n')
@@ -107,6 +106,7 @@ def main():
                 if doornum is not None:
                     print("Sending redirect html")
                     connection.sendall(redirect)
+                    button_press_time = time.time()
                     print("Doornum: ", doornum)
                 else:
                     print("Sending root html")
@@ -116,8 +116,9 @@ def main():
                 
                 connection.sendall('HTTP/1.0 400 Bad Request\r\n')
         except Exception as e:
-            print(f"Exception: {e}")
+            #print(f"Exception: {e}, type is: {e.__class__.__name__}")
             # print("Caught socket timeout error.")
+            lalala = 1
         finally:
             if connection is not None:
                 print(f"Closing connection to: {addr}")
