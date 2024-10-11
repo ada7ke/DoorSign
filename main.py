@@ -18,7 +18,7 @@ def setup_wifi():
 
     sta_if = network.WLAN(network.STA_IF)
     sta_if.active(True)
-    sta_if.connect("Purple Lavenders", "need water")
+    sta_if.connect("****** ********", "**** *****") //(wifi name, wifi password)
     while not sta_if.isconnected():
         time.sleep(1)
         print("Not connected to Wifi")
